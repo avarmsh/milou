@@ -110,29 +110,73 @@ public class Main {
     }
 
     private static void doView(User user) {
-        System.out.print("[A]ll, [U]nread, Read by [C]ode: ");
+        System.out.print("[A]ll, [U]nread, [S]ent, Read by [C]ode: ");
         String choice = scanner.nextLine().trim().toUpperCase();
 
         switch (choice) {
             case "A":
-                svc.getAllEmails(user).forEach(e ->
-                        System.out.printf("+ %s - %s (%s)%n", e.getSender().getEmail(), e.getSubject(), e.getCode()));
+                List<Email> all = svc.getAllEmails(user);
+                if (all.isEmpty()) {
+                    System.out.println("No emails.");
+                } else {
+                    System.out.println("All Emails:");
+                    all.forEach(e -> System.out.printf("+ %s - %s (%s)%n",
+                            e.getSender().getEmail(), e.getSubject(), e.getCode()));
+                }
                 break;
+
             case "U":
-                printUnread(user);
+                List<Email> unread = svc.getUnreadEmails(user);
+                if (unread.isEmpty()) {
+                    System.out.println("No unread emails.");
+                } else {
+                    System.out.println("Unread Emails:");
+                    unread.forEach(e -> System.out.printf("+ %s - %s (%s)%n",
+                            e.getSender().getEmail(), e.getSubject(), e.getCode()));
+                }
                 break;
+
+            case "S":
+                List<Email> sent = svc.getSentEmails(user);
+                if (sent.isEmpty()) {
+                    System.out.println("No sent emails.");
+                } else {
+                    System.out.println("Sent Emails:");
+                    sent.forEach(e -> {
+                        String recs = e.getDeliveries().stream()
+                                .map(d -> d.getRecipient().getEmail())
+                                .collect(Collectors.joining(", "));
+                        System.out.printf("+ %s - %s (%s)%n", recs, e.getSubject(), e.getCode());
+                    });
+                }
+                break;
+
             case "C":
                 System.out.print("Code: ");
-                svc.openEmail(user, scanner.nextLine().trim())
-                        .ifPresentOrElse(e -> {
-                            System.out.println("From: " + e.getSender().getEmail());
-                            System.out.println("Subject: " + e.getSubject());
-                            System.out.println("Date: " + e.getSentTime());
-                            System.out.println("\n" + e.getBody());
-                        }, () -> System.out.println("You cannot read this email."));
+                String code = scanner.nextLine().trim();
+                Optional<Email> emailOpt = svc.openEmail(user, code);
+
+                if (emailOpt.isEmpty()) {
+                    System.out.println("You cannot read this email.");
+                    return;
+                }
+
+                Email email = emailOpt.get();
+                String recs = email.getDeliveries().stream()
+                        .map(d -> d.getRecipient().getEmail())
+                        .collect(Collectors.joining(", "));
+
+                System.out.println("Code: " + email.getCode());
+                System.out.println("Recipient(s): " + recs);
+                System.out.println("Subject: " + email.getSubject());
+                System.out.println("Date: " + email.getSentTime());
+                System.out.println("\n" + email.getBody());
+
+                svc.openEmail(user, code);
                 break;
+
             default:
-                System.out.println("Unknown option.");
+                System.out.println("Invalid choice.");
         }
     }
 
