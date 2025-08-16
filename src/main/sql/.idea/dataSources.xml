@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="brave_galois@lhotse.liara.cloud" uuid="28dd7913-ebf0-4387-bedf-7fb5648fb609">
+    <data-source source="LOCAL" name="brave_dubinsky@siah-kaman.liara.cloud" uuid="28dd7913-ebf0-4387-bedf-7fb5648fb609">
       <driver-ref>mysql.8</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
-      <jdbc-url>jdbc:mysql://lhotse.liara.cloud:31511/brave_galois</jdbc-url>
+      <jdbc-url>jdbc:mysql://siah-kaman.liara.cloud:34278/brave_dubinsky</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

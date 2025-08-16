@@ -7,19 +7,20 @@
 
         <!-- JDBC database connection settings -->
         <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
-        <property name="hibernate.connection.url">
-            jdbc:mysql://lhotse.liara.cloud:31511/brave_galois
-        </property>
+        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/milou_db</property>
         <property name="hibernate.connection.username">root</property>
-        <property name="hibernate.connection.password">hBbosCoHYCZj8VK0euxjXCfi</property>
+        <property name="hibernate.connection.password">ava2025</property>
 
         <!-- Hibernate settings -->
         <property name="hibernate.dialect">org.hibernate.dialect.MySQL8Dialect</property>
-        <property name="hibernate.show_sql">true</property>
-        <property name="hibernate.format_sql">true</property>
-        <property name="hibernate.highlight_sql">true</property>
+        <property name="hibernate.show_sql">false</property>
+        <property name="hibernate.format_sql">false</property>
+        <property name="hibernate.highlight_sql">false</property>
 
         <!-- Mappings -->
         <mapping class="ap.aut.model.User"/>
+        <mapping class="ap.aut.model.Email"/>
+        <mapping class="ap.aut.model.Delivery"/>
+
     </session-factory>
 </hibernate-configuration>

@@ -1,99 +1,167 @@
 package ap.aut;
 
+import ap.aut.dao.UserDao;
+import ap.aut.model.Email;
 import ap.aut.model.User;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.cfg.Configuration;
-import org.hibernate.query.Query;
+import ap.aut.service.MilouService;
+import ap.aut.util.HibernateUtil;
 
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Main {
-
-    private static final SessionFactory sessionFactory = new Configuration().configure().buildSessionFactory();
+    private static final Scanner scanner = new Scanner(System.in);
+    private static final MilouService svc = new MilouService(new UserDao(), new ap.aut.dao.EmailDao());
 
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("[L]ogin, [S]ign up: ");
-        String input = scanner.nextLine();
+        System.out.println("Welcome to Milou!");
 
-        if (input.equalsIgnoreCase("S") || input.equalsIgnoreCase("Sign up")) {
-            signUp(scanner);
-        } else if (input.equalsIgnoreCase("L") || input.equalsIgnoreCase("Login")) {
-            login(scanner);
-        } else {
-            System.out.println("Invalid option");
-        }
+        while (true) {
+            System.out.print("[L]ogin, [S]ign up, [Q]uit: ");
+            String input = scanner.nextLine().trim().toUpperCase();
 
-        scanner.close();
-        sessionFactory.close();
-    }
+            if (input.equals("Q")) {
+                System.out.println("Bye!");
+                HibernateUtil.shutdown();
+                break;
+            }
 
-    public static void signUp(Scanner scanner) {
-        System.out.print("First Name: ");
-        String firstName = scanner.nextLine();
-
-        System.out.print("Last Name: ");
-        String lastName = scanner.nextLine();
-
-        System.out.print("Age: ");
-        int age = Integer.parseInt(scanner.nextLine());
-
-        System.out.print("Email: ");
-        String email = scanner.nextLine();
-
-        if (isEmailTaken(email)) {
-            System.out.println("An account with this email already exists");
-            return;
-        }
-
-        System.out.print("Password: ");
-        String password = scanner.nextLine();
-
-        if (password.length() < 8) {
-            System.out.println("Weak password");
-            return;
-        }
-
-        User user = new User(firstName, lastName, age, email, password);
-
-        try (Session session = sessionFactory.openSession()) {
-            session.beginTransaction();
-            session.persist(user);
-            session.getTransaction().commit();
-        }
-
-        System.out.println("Sign-up successful!");
-    }
-
-    public static void login(Scanner scanner) {
-        System.out.print("Email: ");
-        String email = scanner.nextLine();
-
-        System.out.print("Password: ");
-        String password = scanner.nextLine();
-
-        try (Session session = sessionFactory.openSession()) {
-            Query<User> query = session.createQuery("from User where email = :email and password = :password", User.class);
-            query.setParameter("email", email);
-            query.setParameter("password", password);
-            List<User> users = query.list();
-
-            if (users.isEmpty()) {
-                System.out.println("Invalid email or password");
-            } else {
-                User user = users.get(0);
-                System.out.println("Welcome, " + user.getFirstName() + " " + user.getLastName() + "!");
+            switch (input) {
+                case "S": signUp(); break;
+                case "L":
+                    Optional<User> u = login();
+                    u.ifPresent(Main::dashboard);
+                    break;
+                default: System.out.println("Invalid choice. Try again.");
             }
         }
     }
 
-    public static boolean isEmailTaken(String email) {
-        try (Session session = sessionFactory.openSession()) {
-            Query<User> query = session.createQuery("from User where email = :email", User.class);
-            query.setParameter("email", email);
-            return !query.list().isEmpty();
+    private static void signUp() {
+        System.out.print("Name: ");
+        String name = scanner.nextLine().trim();
+        System.out.print("Email: ");
+        String email = scanner.nextLine().trim();
+        System.out.print("Password: ");
+        String pwd = scanner.nextLine();
+
+        List<String> errs = new ArrayList<>();
+        if (svc.register(name, email, pwd, errs)) {
+            System.out.println("Your new account is created. Go ahead and login!");
+        } else {
+            System.out.println("Signup failed:");
+            errs.forEach(err -> System.out.println(" - " + err));
+        }
+    }
+
+    private static Optional<User> login() {
+        System.out.print("Email: ");
+        String email = scanner.nextLine().trim();
+        System.out.print("Password: ");
+        String pwd = scanner.nextLine();
+
+        Optional<User> user = svc.login(email, pwd);
+        if (user.isEmpty()) {
+            System.out.println("Invalid email or password.");
+        }
+        return user;
+    }
+
+    private static void dashboard(User user) {
+        System.out.println("\nWelcome back, " + user.getName() + "!");
+
+        while (true) {
+            printUnread(user);
+            System.out.print("\nCommands: [S]end, [V]iew, [R]eply, [F]orward, [L]ogout: ");
+            String cmd = scanner.nextLine().trim().toUpperCase();
+
+            switch (cmd) {
+                case "L": return;
+                case "S": doSend(user); break;
+                case "V": doView(user); break;
+                case "R": doReply(user); break;
+                case "F": doForward(user); break;
+                default: System.out.println("Unknown command.");
+            }
+        }
+    }
+
+    private static void printUnread(User user) {
+        List<Email> unread = svc.getUnreadEmails(user);
+        if (unread.isEmpty()) {
+            System.out.println("No unread emails.");
+        } else {
+            System.out.println("\n" + unread.size() + " unread emails:");
+            unread.forEach(e -> System.out.printf("+ %s - %s (%s)%n",
+                    e.getSender().getEmail(), e.getSubject(), e.getCode()));
+        }
+    }
+
+    private static void doSend(User user) {
+        System.out.print("Recipients (comma separated): ");
+        List<String> recs = Arrays.asList(scanner.nextLine().split("\\s*,\\s*"));
+        System.out.print("Subject: ");
+        String subj = scanner.nextLine();
+        System.out.print("Body: ");
+        String body = scanner.nextLine();
+
+        String code = svc.sendEmail(user, recs, subj, body);
+        System.out.println("Successfully sent your email. Code: " + code);
+    }
+
+    private static void doView(User user) {
+        System.out.print("[A]ll, [U]nread, Read by [C]ode: ");
+        String choice = scanner.nextLine().trim().toUpperCase();
+
+        switch (choice) {
+            case "A":
+                svc.getAllEmails(user).forEach(e ->
+                        System.out.printf("+ %s - %s (%s)%n", e.getSender().getEmail(), e.getSubject(), e.getCode()));
+                break;
+            case "U":
+                printUnread(user);
+                break;
+            case "C":
+                System.out.print("Code: ");
+                svc.openEmail(user, scanner.nextLine().trim())
+                        .ifPresentOrElse(e -> {
+                            System.out.println("From: " + e.getSender().getEmail());
+                            System.out.println("Subject: " + e.getSubject());
+                            System.out.println("Date: " + e.getSentTime());
+                            System.out.println("\n" + e.getBody());
+                        }, () -> System.out.println("You cannot read this email."));
+                break;
+            default:
+                System.out.println("Unknown option.");
+        }
+    }
+
+    private static void doReply(User user) {
+        System.out.print("Code: ");
+        String c = scanner.nextLine().trim();
+        System.out.print("Body: ");
+        String body = scanner.nextLine();
+
+        String code = svc.replyEmail(user, c, body);
+        if (code != null) {
+            System.out.printf("Successfully sent your reply to email %s. Code: %s%n", c, code);
+        } else {
+            System.out.println("Email not found or not allowed.");
+        }
+    }
+
+    private static void doForward(User user) {
+        System.out.print("Code: ");
+        String c = scanner.nextLine().trim();
+        System.out.print("Recipients (comma separated): ");
+        List<String> recs = Arrays.stream(scanner.nextLine().split("\\s*,\\s*"))
+                .collect(Collectors.toList());
+
+        String code = svc.forwardEmail(user, c, recs);
+        if (code != null) {
+            System.out.println("Successfully forwarded your email.\nCode: " + code);
+        } else {
+            System.out.println("Email not found.");
         }
     }
 }

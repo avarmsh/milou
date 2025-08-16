@@ -39,3 +39,5 @@ build/
 
 ### Config ###
 src/main/resources/hibernate.cfg.xml
+
+.idea
