@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 public class Main {
     private static final Scanner scanner = new Scanner(System.in);
     private static final MilouService svc = new MilouService(new UserDao(), new ap.aut.dao.EmailDao());
+    private static final Set<String> starredCodes = new HashSet<>();
 
     public static void main(String[] args) {
         System.out.println("Welcome to Milou!");
@@ -72,7 +73,7 @@ public class Main {
 
         while (true) {
             printUnread(user);
-            System.out.print("\nCommands: [S]end, [V]iew, [R]eply, [F]orward, [D]elete, [L]ogout: ");
+            System.out.print("\nCommands: [S]end, [V]iew, [R]eply, [F]orward, [D]elete, [T]oggle Star, View [*]Starred, [L]ogout: ");
             String cmd = scanner.nextLine().trim().toUpperCase();
 
             switch (cmd) {
@@ -82,6 +83,8 @@ public class Main {
                 case "R": doReply(user); break;
                 case "F": doForward(user); break;
                 case "D": doDelete(user); break;
+                case "T": toggleStar(user); break;
+                case "*": viewStarred(user); break;
 
                 default: System.out.println("Unknown command.");
             }
@@ -220,6 +223,34 @@ public class Main {
             System.out.println("Email deleted successfully.");
         } else {
             System.out.println("Failed to delete email. Either it doesn't exist or you don't have permission.");
+        }
+    }
+
+    private static void toggleStar(User user) {
+        System.out.print("Code: ");
+        String code = scanner.nextLine().trim();
+
+        if (starredCodes.contains(code)) {
+            starredCodes.remove(code);
+            System.out.println("Unstarred email " + code);
+        } else {
+            starredCodes.add(code);
+            System.out.println("Starred email " + code);
+        }
+    }
+
+    private static void viewStarred(User user) {
+        List<Email> all = svc.getAllEmails(user);
+        List<Email> starred = all.stream()
+                .filter(e -> starredCodes.contains(e.getCode()))
+                .toList();
+
+        if (starred.isEmpty()) {
+            System.out.println("No starred emails.");
+        } else {
+            System.out.println("Starred Emails:");
+            starred.forEach(e -> System.out.printf("+ %s - %s (%s)%n",
+                    e.getSender().getEmail(), e.getSubject(), e.getCode()));
         }
     }
 
