@@ -4,6 +4,13 @@ import ap.aut.dao.EmailDao;
 import ap.aut.dao.UserDao;
 import ap.aut.model.Email;
 import ap.aut.model.User;
+import ap.aut.util.HibernateUtil;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.hibernate.Transaction;
+import org.hibernate.Session;
+import org.hibernate.query.Query;
+
 
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +24,7 @@ public class MilouService {
         this.userDao = userDao;
         this.emailDao = emailDao;
     }
+
 
     public boolean register(String name, String email, String password, List<String> errors) {
         if (name.isBlank() || email.isBlank() || password.isBlank()) {
@@ -60,27 +68,31 @@ public class MilouService {
         return emailDao.findBySender(user);
     }
 
-    public Optional<Email> openEmail(User user, String code) {
-        Optional<Email> emailOpt = emailDao.findByCode(code);
-
-        if (emailOpt.isEmpty()) return Optional.empty();
+    public Email openEmail(User user, String code) {
+        Optional<Email> emailOpt = emailDao.findByCodeWithDeliveries(code);
+        if (emailOpt.isEmpty()) return null;
 
         Email email = emailOpt.get();
 
-        boolean isSender = email.getSender().getId() == user.getId();
-        boolean isRecipient = email.getDeliveries().stream()
-                .anyMatch(d -> d.getRecipient().getId() == user.getId());
+        email.getDeliveries().stream()
+                .filter(d -> d.getRecipient().getId() == user.getId())
+                .findFirst()
+                .ifPresent(d -> {
+                    if (!d.isRead()) {
+                        d.setRead(true);
+                        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+                            Transaction tx = (Transaction) session.beginTransaction();
+                            session.update(d);
+                            tx.commit();
+                        }
+                    }
+                });
 
-        if (isSender || isRecipient) {
-            emailDao.markDeliveryAsRead(user, email);
-            return Optional.of(email);
-        } else {
-            return Optional.empty();
-        }
+        return email;
     }
 
     public String replyEmail(User replier, String originalEmailCode, String body) {
-        Optional<Email> originalOpt = openEmail(replier, originalEmailCode);
+        Optional<Email> originalOpt = Optional.ofNullable(openEmail(replier, originalEmailCode));
         if (originalOpt.isEmpty()) return null;
 
         Email original = originalOpt.get();
@@ -94,7 +106,7 @@ public class MilouService {
     }
 
     public String forwardEmail(User forwarder, String originalEmailCode, List<String> recipients) {
-        Optional<Email> originalOpt = openEmail(forwarder, originalEmailCode);
+        Optional<Email> originalOpt = Optional.ofNullable(openEmail(forwarder, originalEmailCode));
         if (originalOpt.isEmpty()) return null;
 
         Email original = originalOpt.get();

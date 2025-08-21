@@ -60,14 +60,15 @@ public class EmailDao {
         }
     }
 
-    public Optional<Email> findByCode(String code) {
-        try (Session session = session()) {
-            String hql = "from Email e where e.code = :code";
-            return session.createQuery(hql, Email.class)
+    public Optional<Email> findByCodeWithDeliveries(String code) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createQuery(
+                            "SELECT e FROM Email e LEFT JOIN FETCH e.deliveries d LEFT JOIN FETCH d.recipient WHERE e.code = :code", Email.class)
                     .setParameter("code", code)
                     .uniqueResultOptional();
         }
     }
+
 
     public void markDeliveryAsRead(User user, Email email) {
         try (Session session = session()) {

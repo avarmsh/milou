@@ -154,7 +154,7 @@ public class Main {
             case "C":
                 System.out.print("Code: ");
                 String code = scanner.nextLine().trim();
-                Optional<Email> emailOpt = svc.openEmail(user, code);
+                Optional<Email> emailOpt = Optional.ofNullable(svc.openEmail(user, code));
 
                 if (emailOpt.isEmpty()) {
                     System.out.println("You cannot read this email.");
