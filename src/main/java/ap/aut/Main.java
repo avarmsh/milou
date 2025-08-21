@@ -72,7 +72,7 @@ public class Main {
 
         while (true) {
             printUnread(user);
-            System.out.print("\nCommands: [S]end, [V]iew, [R]eply, [F]orward, [L]ogout: ");
+            System.out.print("\nCommands: [S]end, [V]iew, [R]eply, [F]orward, [D]elete, [L]ogout: ");
             String cmd = scanner.nextLine().trim().toUpperCase();
 
             switch (cmd) {
@@ -81,6 +81,8 @@ public class Main {
                 case "V": doView(user); break;
                 case "R": doReply(user); break;
                 case "F": doForward(user); break;
+                case "D": doDelete(user); break;
+
                 default: System.out.println("Unknown command.");
             }
         }
@@ -208,4 +210,17 @@ public class Main {
             System.out.println("Email not found.");
         }
     }
+
+    private static void doDelete(User user) {
+        System.out.print("Code of email to delete: ");
+        String code = scanner.nextLine().trim();
+
+        boolean success = svc.deleteEmail(user, code);
+        if (success) {
+            System.out.println("Email deleted successfully.");
+        } else {
+            System.out.println("Failed to delete email. Either it doesn't exist or you don't have permission.");
+        }
+    }
+
 }

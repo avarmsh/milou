@@ -138,4 +138,37 @@ public class MilouService {
         emailDao.save(fwd);
         return code;
     }
+
+    public boolean deleteEmail(User user, String code) {
+        Optional<Email> emailOpt = emailDao.findByCodeWithDeliveries(code);
+        if (emailOpt.isEmpty()) return false;
+
+        Email email = emailOpt.get();
+
+        if (email.getSender().getId() != user.getId()) {
+            System.out.println(user.getName() + " is not allowed to delete this email.");
+            return false;
+        }
+
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            Long replyCount = session.createQuery(
+                            "SELECT COUNT(e) FROM Email e WHERE e.originalEmail.code = :code", Long.class)
+                    .setParameter("code", code)
+                    .getSingleResult();
+
+            if (replyCount > 0) {
+                System.out.println("Cannot delete this email because it has replies or forwards.");
+                return false;
+            }
+
+            Transaction tx = session.beginTransaction();
+            session.delete(email);
+            tx.commit();
+        }
+
+        return true;
+    }
+
+
+
 }
