@@ -35,7 +35,18 @@ public class MilouService {
             errors.add("Email already registered.");
             return false;
         }
-        User user = new User(name, email, password);
+
+        String fixedEmail = email.trim();
+        if (!fixedEmail.endsWith("@milou.com")) {
+            fixedEmail += "@milou.com";
+        }
+
+        if (userDao.findByEmail(fixedEmail).isPresent()) {
+            errors.add("Email already registered.");
+            return false;
+        }
+
+        User user = new User(name, fixedEmail, password);
         userDao.save(user);
         return true;
     }
@@ -49,8 +60,15 @@ public class MilouService {
         Email email = new Email(UUID.randomUUID().toString().substring(0, 6),
                 sender, subject, body, false, false, null);
 
-        recipientEmails.forEach(rec -> userDao.findByEmail(rec.trim())
-                .ifPresent(r -> email.getDeliveries().add(new ap.aut.model.Delivery(email, r))));
+        recipientEmails.forEach(rec -> {
+            String fixedEmail = rec.trim();
+            if (!fixedEmail.endsWith("@milou.com")) {
+                fixedEmail += "@milou.com";
+            }
+            userDao.findByEmail(fixedEmail)
+                    .ifPresent(r -> email.getDeliveries().add(new ap.aut.model.Delivery(email, r)));
+        });
+
 
         emailDao.save(email);
         return email.getCode();
